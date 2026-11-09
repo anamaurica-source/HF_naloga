@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="HF.Api/HF.Api.csproj" />
+  <Project Path="HF.Web/HF.Web.csproj" />
+</Solution>

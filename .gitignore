@@ -1,0 +1,51 @@
+
+# .NET build output
+**/bin/
+**/obj/
+**/Debug/
+**/Release/
+artifacts/
+TestResults/
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+*.user
+*.suo
+*.rsuser
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+**/secrets.json
+**/appsettings.Local.json
+**/appsettings.*.local.json
+**/appsettings.Production.json
+**/appsettings.Development.local.json
+
+# Certificates and private keys
+*.pfx
+*.p12
+*.pem
+*.key
+
+# Logs
+*.log
+logs/
+
+# Local database files and backups
+*.db
+*.sqlite
+*.sqlite3
+*.bak
+*.dump
+*.sql.gz
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp

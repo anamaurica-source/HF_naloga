@@ -5,6 +5,7 @@ using HF.Api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using HF.Api.Services;
 
 namespace HF.Api.Controllers;
 
@@ -108,7 +109,7 @@ public class EventsController : ControllerBase
         [FromBody] CreateRegistrationRequest request)
     {
         var fullName = request.FullName?.Trim() ?? "";
-        var email = request.Email?.Trim().ToLowerInvariant() ?? "";
+        var email = RegistrationRules.NormalizeEmail(request.Email ?? "");
 
         if (string.IsNullOrWhiteSpace(fullName) ||
             string.IsNullOrWhiteSpace(email))
@@ -146,35 +147,40 @@ public class EventsController : ControllerBase
                 title: "Dogodek ne obstaja.");
         }
 
-        if (ev.DateTime <= DateTime.UtcNow)
-        {
-            return Problem(
-                statusCode: 409,
-                title: "Prijava ni mogoča.",
-                detail: "Na pretekle dogodke se ni mogoče prijaviti.");
-        }
-
+        
         var alreadyRegistered = await _context.Registrations
             .AnyAsync(r => r.EventId == id && r.Email == email);
-
-        if (alreadyRegistered)
-        {
-            return Problem(
-                statusCode: 409,
-                title: "Podvojena prijava.",
-                detail: "Ta e-poštni naslov je že prijavljen na dogodek.");
-        }
 
         var registeredCount = await _context.Registrations
             .CountAsync(r => r.EventId == id);
 
-        if (registeredCount >= ev.Capacity)
+        var validation = RegistrationRules.Validate(
+            ev,
+            registeredCount,
+            alreadyRegistered,
+            DateTime.UtcNow);
+
+        switch (validation)
         {
-            return Problem(
-                statusCode: 409,
-                title: "Dogodek je poln.",
-                detail: "Na dogodku ni več prostih mest.");
+            case RegistrationError.PastEvent:
+                return Problem(
+                    statusCode: 409,
+                    title: "Prijava ni mogoča.",
+                    detail: "Na pretekle dogodke se ni mogoče prijaviti.");
+
+            case RegistrationError.DuplicateEmail:
+                return Problem(
+                    statusCode: 409,
+                    title: "Podvojena prijava.",
+                    detail: "Ta e-poštni naslov je že prijavljen na dogodek.");
+
+            case RegistrationError.EventFull:
+                return Problem(
+                    statusCode: 409,
+                    title: "Dogodek je poln.",
+                    detail: "Na dogodku ni več prostih mest.");
         }
+
 
         var registration = new Registration
         {

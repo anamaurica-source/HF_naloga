@@ -286,3 +286,27 @@ The event details page provides information about the selected event and a regis
 ## License
 
 No license has been specified for this project.
+
+
+## Automated Tests
+
+The application uses xUnit for automated unit testing.
+
+Business rules are implemented in a dedicated RegistrationRules class, allowing them to be tested independently of the database and HTTP layer.
+
+The unit tests cover:
+
+- Rejecting registrations when an event is full
+- Rejecting duplicate registrations
+- Rejecting registrations for past events
+- Allowing valid registrations
+- Email address normalization
+- Rejecting registrations at the exact event start time
+
+Run the tests from the repository root:
+
+```powershell
+dotnet test HF.Tests/HF.Tests.csproj
+```
+
+The current tests validate business-rule decisions. Full API, database constraint, and concurrent registration behavior can additionally be verified through integration tests.

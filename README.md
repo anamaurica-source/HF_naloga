@@ -257,31 +257,6 @@ The event details page provides information about the selected event and a regis
 
 .NET User Secrets are intended for local development and are not encrypted secret storage.
 
-## Development Status
-
-### Implemented
-
-- ASP.NET Core Web API backend
-- Blazor Interactive Server frontend
-- PostgreSQL integration
-- EF Core migrations
-- Automatic sample event seeding
-- Event listing and date filtering
-- Event details and availability
-- Event registration
-- Backend business rules
-- Input validation and API error responses
-- Frontend API integration
-- Responsive user interface and application branding
-
-### Planned
-
-- Automated unit and integration tests
-- Tests for invalid, duplicate, full-event, and past-event registrations
-- Concurrent registration testing
-- Dockerfile and containerized deployment
-- GitLab CI pipeline for automated builds and tests
-- Improved local date and time presentation
 
 ## License
 
@@ -310,3 +285,54 @@ dotnet test HF.Tests/HF.Tests.csproj
 ```
 
 The current tests validate business-rule decisions. Full API, database constraint, and concurrent registration behavior can additionally be verified through integration tests.
+
+
+## Docker
+
+The application includes a multi-stage Dockerfile for the ASP.NET Core Web API.
+
+Docker Compose starts two services:
+
+api – ASP.NET Core Web API
+
+db – PostgreSQL database
+
+Running with Docker Compose
+
+Install Docker Desktop and ensure Docker is running.
+
+Create a local environment configuration file:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Edit .env and replace the placeholder with a strong database password.
+
+Build and start the services:
+
+```powershell
+docker compose up --build -d
+```
+
+The API is available at:
+
+http://localhost:8085/events
+
+The PostgreSQL database is stored in a persistent Docker volume.
+
+Database migrations are automatically applied when the Docker environment starts. During development, sample events are inserted if the database contains no events.
+
+To stop the services:
+
+```powershell
+docker compose down
+```
+
+To stop the services and delete the database volume:
+
+```powershell
+docker compose down -v
+```
+
+The Compose configuration is intended for local development and testing, not production deployment.

@@ -41,7 +41,7 @@ public static class DbSeeder
             },
             new Event
             {
-                Name = "Pretekli dogodek",
+                Name = "Salsa večer",
                 DateTime = today.AddDays(-7).AddHours(10),
                 Location = "Ljubljana",
                 Capacity = 30

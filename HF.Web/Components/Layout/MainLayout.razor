@@ -1,22 +1,36 @@
 ﻿
 @inherits LayoutComponentBase
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+<div class="app-layout">
 
-    <main>
-        <div class="top-row px-4">
-            <span class="text-muted">
-                Stičišče – dogodki na enem mestu
-            </span>
+    <header class="app-header">
+        <div class="header-container">
+            <a href="/" class="app-logo">
+                Stičišče<span class="logo-dot">.</span>
+            </a>
+
+            <nav class="header-nav">
+                <NavLink href="/"
+                         Match="NavLinkMatch.All">
+                    Dogodki
+                </NavLink>
+            </nav>
         </div>
+    </header>
 
-        <article class="content px-4">
+    <main class="app-main">
+        <div class="main-container">
             @Body
-        </article>
+        </div>
     </main>
+
+    <footer class="app-footer">
+        <div class="footer-container">
+            <span>Stičišče</span>
+            <span>Dogodki na enem mestu</span>
+        </div>
+    </footer>
+
 </div>
 
 <div id="blazor-error-ui" data-nosnippet>

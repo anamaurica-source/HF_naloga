@@ -1,57 +1,75 @@
-# Stičišče – Event Registration Application
+# Stičišče
 
-**Stičišče** is a web application for discovering events and registering participants. It provides a simple interface for browsing events, filtering them by date, viewing event details, and submitting registrations.
+**Stičišče** is a web application for discovering events and registering participants. Users can browse events, filter them by date, view event details and availability, and submit registrations.
 
-The application is built using ASP.NET Core Web API, Blazor, and PostgreSQL.
+The application consists of an ASP.NET Core Web API backend, a Blazor frontend, and a PostgreSQL database.
 
 ## Technologies
 
-- **Backend:** ASP.NET Core Web API (.NET 10)
-- **Frontend:** Blazor Web App (Interactive Server)
-- **Database:** PostgreSQL
-- **ORM:** Entity Framework Core
-- **Database migrations:** EF Core Migrations
-- **Language:** C#
+| Component | Technology |
+|---|---|
+| Backend | ASP.NET Core Web API (.NET 10) |
+| Frontend | Blazor Web App (Interactive Server) |
+| Database | PostgreSQL |
+| ORM | Entity Framework Core |
+| Database migrations | EF Core Migrations |
+| Language | C# |
+| Styling | Bootstrap and custom CSS |
 
-Blazor was selected for the frontend because it enables interactive web development using C# and integrates naturally with the ASP.NET Core backend. The frontend and backend are implemented as separate projects to maintain a clear separation of responsibilities.
+### Technology Selection
+
+Blazor was selected because it enables interactive web development using C# and integrates naturally with the ASP.NET Core ecosystem.
+
+The frontend and backend are separated into two projects. This provides a clear separation between the user interface, API, business logic, and database access.
+
+Blazor Interactive Server also allows the frontend to communicate with the API through server-side `HttpClient` requests.
+
+PostgreSQL was selected as a free, open-source relational database with support for transactions, constraints, and concurrent operations.
 
 ## Features
 
-The application currently supports:
+### Event Browsing
 
-- Browsing available events
-- Filtering events by date range
-- Viewing event details and remaining capacity
-- Registering for events using a full name and email address
-- Preventing registrations when an event is fully booked
-- Preventing duplicate registrations using the same email address
-- Preventing registrations for past events
-- Displaying registration confirmations and error messages
-- Validating registration data on both frontend and backend
+- View a list of events
+- Filter events by a date range
+- View event details, including date, location, and capacity
+- Display the number of remaining available places
+- Distinguish between upcoming, past, and fully booked events
 
-The backend uses database transactions and row-level locking to prevent event capacity from being exceeded by concurrent registrations.
+### Event Registration
+
+Users can register for events by providing their full name and email address.
+
+The backend enforces the following business rules:
+
+1. Registration is not allowed when an event has reached its capacity.
+2. The same email address cannot be registered twice for the same event.
+3. Registration is not allowed for past events.
+4. Invalid requests return appropriate HTTP status codes and understandable error messages.
+
+Registration processing uses database transactions and PostgreSQL row-level locking to protect event capacity from concurrent registrations.
+
+A unique database index on the combination of event ID and email provides additional protection against duplicate registrations.
 
 ## Project Structure
 
-The solution consists of two separate .NET projects:
-
 ```text
-HF_naloga-main/
+HF_naloga/
 ├── HF.Api/
-│   ├── Controllers/
-│   ├── Data/
-│   ├── DTOs/
-│   ├── Models/
-│   ├── Migrations/
+│   ├── Controllers/    # API endpoints
+│   ├── Data/           # DbContext and database seeding
+│   ├── DTOs/           # API request models
+│   ├── Models/         # Database entities
+│   ├── Migrations/     # EF Core migrations
 │   └── Program.cs
 │
 ├── HF.Web/
 │   ├── Components/
-│   │   ├── Layout/
-│   │   └── Pages/
-│   ├── Models/
-│   ├── Services/
-│   ├── wwwroot/
+│   │   ├── Layout/    # Application layout
+│   │   └── Pages/     # Event listing and details
+│   ├── Models/         # Frontend data models
+│   ├── Services/       # API communication
+│   ├── wwwroot/        # CSS and static assets
 │   └── Program.cs
 │
 ├── HF.slnx
@@ -59,20 +77,22 @@ HF_naloga-main/
 └── README.md
 ```
 
-- `HF.Api` handles API requests, business logic, validation, and database operations.
-- `HF.Web` provides the Blazor user interface and communicates with the backend through HTTP requests.
-
 ## API Endpoints
 
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/events` | Retrieve events with optional date filtering |
 | GET | `/events/{id}` | Retrieve event details and remaining capacity |
-| POST | `/events/{id}/registrations` | Register a participant for an event |
+| POST | `/events/{id}/registrations` | Register a participant |
 
 ### Event Filtering
 
-Events can be filtered using optional `from` and `to` query parameters.
+Optional query parameters:
+
+- `from` – Start date (inclusive)
+- `to` – End date (inclusive)
+
+Dates use the `yyyy-MM-dd` format. The current API interprets date boundaries in UTC.
 
 Example:
 
@@ -96,13 +116,49 @@ Content-Type: application/json
 }
 ```
 
-The API returns appropriate HTTP status codes:
+### HTTP Responses
 
-- `200 OK` – Successful data retrieval
-- `201 Created` – Successful registration
-- `400 Bad Request` – Invalid input
-- `404 Not Found` – Event not found
-- `409 Conflict` – Duplicate registration, full event, or past event
+| Status | Description |
+|---|---|
+| 200 OK | Successful data retrieval |
+| 201 Created | Registration created successfully |
+| 400 Bad Request | Invalid input or date filter |
+| 404 Not Found | Event does not exist |
+| 409 Conflict | Duplicate registration, full event, or past event |
+
+API errors use structured error responses containing descriptive messages.
+
+## Database
+
+The database contains two main entities.
+
+### Event
+
+- `Id`
+- `Name`
+- `DateTime`
+- `Location`
+- `Capacity`
+
+### Registration
+
+- `Id`
+- `EventId`
+- `FullName`
+- `Email`
+- `RegisteredAt`
+
+Each event can have multiple registrations.
+
+Database schema changes are managed using Entity Framework Core migrations.
+
+### Initial Data
+
+During development, the application automatically inserts sample events when the events table is empty.
+
+The sample data includes upcoming and past events to support manual testing.
+
+Existing database records are not overwritten when the seeder runs again.
 
 ## Local Development
 
@@ -110,49 +166,48 @@ The API returns appropriate HTTP status codes:
 
 - .NET 10 SDK
 - PostgreSQL
-- Visual Studio Code (recommended)
+- EF Core CLI tools (`dotnet-ef`)
+- Visual Studio Code or another .NET-compatible IDE
 
-### Database Configuration
+### 1. Configure PostgreSQL
 
 Create a PostgreSQL database named `hf_naloga`.
 
-Initialize .NET User Secrets for the backend:
+Initialize User Secrets for the API project if they have not already been initialized:
 
 ```powershell
 dotnet user-secrets init --project HF.Api
 ```
 
-Configure the database connection:
+Configure the connection string:
 
 ```powershell
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=hf_naloga;Username=postgres;Password=YOUR_PASSWORD" --project HF.Api
 ```
 
-Replace `YOUR_PASSWORD` with your local PostgreSQL password.
+Replace `YOUR_PASSWORD` with your local database password.
 
-Database credentials must not be committed to the repository.
+Never commit database credentials to version control.
 
-### Apply Database Migrations
+### 2. Restore Dependencies
 
-From the repository root, execute:
+From the repository root:
+
+```powershell
+dotnet restore
+```
+
+### 3. Apply Database Migrations
 
 ```powershell
 dotnet ef database update --project HF.Api --startup-project HF.Api
 ```
 
-The database schema is created and updated through EF Core migrations.
+This creates the required database tables.
 
-### Run the Backend
+### 4. Configure the Frontend
 
-```powershell
-dotnet run --project HF.Api
-```
-
-The API runs on the address configured in `HF.Api/Properties/launchSettings.json`.
-
-### Configure the Frontend
-
-Ensure that `HF.Web/appsettings.Development.json` contains the correct backend URL:
+Set the backend URL in `HF.Web/appsettings.Development.json`:
 
 ```json
 {
@@ -162,90 +217,71 @@ Ensure that `HF.Web/appsettings.Development.json` contains the correct backend U
 }
 ```
 
-The port must match the backend's actual listening port.
+Keep any other existing configuration sections. Adjust the port if necessary.
 
-### Run the Frontend
+### 5. Run the Backend
 
-Open a second terminal and execute:
+```powershell
+dotnet run --project HF.Api
+```
+
+### 6. Run the Frontend
+
+Open another terminal:
 
 ```powershell
 dotnet run --project HF.Web
 ```
 
-Open the frontend URL displayed in the terminal.
+Open the URL displayed by the frontend application.
 
-Both applications must be running for the frontend to communicate with the API.
+Both projects must be running during local development.
 
-## Database
+## User Interface
 
-The application uses two main entities.
+Stičišče uses a responsive Blazor interface with a beige, burgundy, and mint-green color palette.
 
-### Event
+The main page displays available events and provides a date-range search.
 
-- ID
-- Name
-- Date and time
-- Location
-- Capacity
+The event details page provides information about the selected event and a registration form with validation and feedback messages.
 
-### Registration
+## Security and Data Validation
 
-- ID
-- Event reference
-- Full name
-- Email address
-- Registration timestamp
+- Input validation is performed before registrations are processed.
+- Business rules are enforced by the backend.
+- Email addresses are normalized before being stored through the API.
+- Duplicate registrations are restricted by a database unique index.
+- Transactions and row-level locking prevent concurrent registrations from exceeding capacity.
+- Database credentials are stored locally using .NET User Secrets.
+- Generated build files and sensitive local configuration files are excluded through `.gitignore`.
 
-A one-to-many relationship connects events with their registrations.
-
-A unique database index on event ID and email prevents duplicate registrations.
-
-Event dates and registration timestamps are stored in UTC.
-
-### Initial Data
-
-During development, the application automatically seeds an empty database with sample events.
-
-These include upcoming events and a past event for testing registration restrictions.
-
-## Security and Validation
-
-- Registration data is validated before processing.
-- Business rules are enforced on the backend.
-- Database transactions protect against concurrent overbooking.
-- Duplicate registrations are restricted by a unique database index.
-- API errors return appropriate HTTP status codes and descriptive messages.
-- Sensitive configuration values are stored locally using .NET User Secrets.
-- Build artifacts, local environment files, and credentials are excluded from version control.
+.NET User Secrets are intended for local development and are not encrypted secret storage.
 
 ## Development Status
 
-**The initial working version of Stičišče has been implemented.**
+### Implemented
 
-### Completed
-
-- ASP.NET Core Web API project
-- Blazor frontend project
-- PostgreSQL database integration
-- Entity Framework Core models and migrations
-- Automatic database seeding
+- ASP.NET Core Web API backend
+- Blazor Interactive Server frontend
+- PostgreSQL integration
+- EF Core migrations
+- Automatic sample event seeding
 - Event listing and date filtering
-- Event details and remaining capacity
-- Event registration endpoint
-- Backend business rules and validation
-- Blazor event listing page
-- Event details and registration form
-- Frontend-to-backend API communication
+- Event details and availability
+- Event registration
+- Backend business rules
+- Input validation and API error responses
+- Frontend API integration
+- Responsive user interface and application branding
 
-### Planned Improvements
+### Planned
 
-- UI/UX improvements and application branding
-- Improved error handling and user feedback
-- Localized date and time display
-- Unit and integration tests
+- Automated unit and integration tests
+- Tests for invalid, duplicate, full-event, and past-event registrations
+- Concurrent registration testing
 - Dockerfile and containerized deployment
 - GitLab CI pipeline for automated builds and tests
-- Additional application testing and documentation
+- Improved local date and time presentation
 
 ## License
 

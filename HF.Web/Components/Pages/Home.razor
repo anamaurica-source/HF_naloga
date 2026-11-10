@@ -4,10 +4,13 @@
 @using HF.Web.Services
 @inject EventApiClient Api
 
-<PageTitle>Dogodki</PageTitle>
+<PageTitle>Stičišče</PageTitle>
 
-<h1>Dogodki</h1>
-<p>Oglej si prihajajoče dogodke in se prijavi.</p>
+<h1>Odkrij svoj naslednji dogodek.</h1>
+<p>
+    Razišči dogodke, poišči tiste, ki te zanimajo,
+    in si zagotovi svoje mesto.
+</p>
 
 <div class="card p-3 mb-4">
     <h5>Filtriranje dogodkov</h5>
@@ -30,7 +33,7 @@
         <div class="col-md-4 d-flex align-items-end gap-2">
             <button class="btn btn-primary"
                     @onclick="LoadEvents">
-                Filtriraj
+                Išči
             </button>
 
             <button class="btn btn-outline-secondary"

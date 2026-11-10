@@ -1,0 +1,180 @@
+
+@page "/events/{Id:int}"
+@using HF.Web.Models
+@using HF.Web.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject EventApiClient Api
+
+<PageTitle>Podrobnosti dogodka</PageTitle>
+
+<a href="/" class="btn btn-link mb-3">
+    ← Nazaj na dogodke
+</a>
+
+@if (loading)
+{
+    <p>Nalaganje...</p>
+}
+else if (error != null)
+{
+    <div class="alert alert-danger">@error</div>
+}
+else if (ev == null)
+{
+    <div class="alert alert-warning">
+        Dogodek ne obstaja.
+    </div>
+}
+else
+{
+    <h1>@ev.Name</h1>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <p>
+                <strong>Datum in ura:</strong>
+                @ev.DateTime.ToString("dd. MM. yyyy HH:mm") UTC
+            </p>
+
+            <p>
+                <strong>Lokacija:</strong> @ev.Location
+            </p>
+
+            <p>
+                <strong>Kapaciteta:</strong> @ev.Capacity
+            </p>
+
+            <p>
+                <strong>Prosta mesta:</strong>
+                @ev.AvailablePlaces
+            </p>
+        </div>
+    </div>
+
+    @if (ev.DateTime <= DateTime.UtcNow)
+    {
+        <div class="alert alert-warning">
+            Prijava ni mogoča, ker je dogodek že potekel.
+        </div>
+    }
+    else if (ev.AvailablePlaces <= 0)
+    {
+        <div class="alert alert-warning">
+            Dogodek je zapolnjen.
+        </div>
+    }
+    else if (registrationSuccess)
+    {
+        <div class="alert alert-success">
+            @message
+        </div>
+    }
+    else
+    {
+        <h3>Prijava na dogodek</h3>
+
+        <EditForm Model="registration"
+                  OnValidSubmit="SubmitRegistration"
+                  FormName="event-registration">
+
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-3">
+                <label class="form-label">
+                    Ime in priimek
+                </label>
+
+                <InputText class="form-control"
+                           @bind-Value="registration.FullName" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">
+                    E-poštni naslov
+                </label>
+
+                <InputText class="form-control"
+                           type="email"
+                           @bind-Value="registration.Email" />
+            </div>
+
+            <button type="submit"
+                    class="btn btn-primary"
+                    disabled="@submitting">
+                @(submitting ? "Pošiljanje..." : "Prijavi se")
+            </button>
+        </EditForm>
+
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="alert alert-danger mt-3">
+                @message
+            </div>
+        }
+    }
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private EventDto? ev;
+    private RegistrationRequest registration = new();
+
+    private bool loading = true;
+    private bool submitting;
+    private bool registrationSuccess;
+
+    private string? error;
+    private string? message;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        loading = true;
+        error = null;
+        message = null;
+        registrationSuccess = false;
+        registration = new RegistrationRequest();
+
+        try
+        {
+            ev = await Api.GetEventAsync(Id);
+        }
+        catch (Exception)
+        {
+            error = "Podrobnosti dogodka ni bilo mogoče naložiti.";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task SubmitRegistration()
+    {
+        submitting = true;
+        message = null;
+
+        try
+        {
+            var result = await Api.RegisterAsync(Id, registration);
+
+            registrationSuccess = result.Success;
+            message = result.Message;
+
+            if (result.Success)
+            {
+                ev = await Api.GetEventAsync(Id);
+            }
+        }
+        catch (Exception)
+        {
+            message = "Prišlo je do napake pri povezavi s strežnikom.";
+        }
+        finally
+        {
+            submitting = false;
+        }
+    }
+}

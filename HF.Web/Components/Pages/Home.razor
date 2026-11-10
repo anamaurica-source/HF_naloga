@@ -1,7 +1,155 @@
-﻿@page "/"
+﻿
+@page "/"
+@using HF.Web.Models
+@using HF.Web.Services
+@inject EventApiClient Api
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Dogodki</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1>Dogodki</h1>
+<p>Oglej si prihajajoče dogodke in se prijavi.</p>
 
-Welcome to your new app.
+<div class="card p-3 mb-4">
+    <h5>Filtriranje dogodkov</h5>
+
+    <div class="row g-3">
+        <div class="col-md-4">
+            <label class="form-label">Datum od</label>
+            <input type="date"
+                   class="form-control"
+                   @bind="fromDate" />
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label">Datum do</label>
+            <input type="date"
+                   class="form-control"
+                   @bind="toDate" />
+        </div>
+
+        <div class="col-md-4 d-flex align-items-end gap-2">
+            <button class="btn btn-primary"
+                    @onclick="LoadEvents">
+                Filtriraj
+            </button>
+
+            <button class="btn btn-outline-secondary"
+                    @onclick="ClearFilters">
+                Počisti
+            </button>
+        </div>
+    </div>
+</div>
+
+@if (loading)
+{
+    <p>Nalaganje dogodkov...</p>
+}
+else if (error != null)
+{
+    <div class="alert alert-danger">@error</div>
+}
+else if (events.Count == 0)
+{
+    <div class="alert alert-info">
+        Za izbrano obdobje ni dogodkov.
+    </div>
+}
+else
+{
+    <div class="row g-3">
+        @foreach (var ev in events)
+        {
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">@ev.Name</h5>
+
+                        <p class="card-text">
+                            <strong>Datum:</strong>
+                            @ev.DateTime.ToString("dd. MM. yyyy HH:mm") UTC
+                            <br />
+                            <strong>Lokacija:</strong> @ev.Location
+                            <br />
+                            <strong>Prosta mesta:</strong>
+                            @ev.AvailablePlaces / @ev.Capacity
+                        </p>
+
+                        @if (ev.DateTime <= DateTime.UtcNow)
+                        {
+                            <span class="badge bg-secondary">
+                                Pretekli dogodek
+                            </span>
+                        }
+                        else if (ev.AvailablePlaces <= 0)
+                        {
+                            <span class="badge bg-danger">
+                                Zapolnjeno
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-success">
+                                Prijave odprte
+                            </span>
+                        }
+                    </div>
+
+                    <div class="card-footer bg-transparent">
+                        <a class="btn btn-primary"
+                           href="@($"/events/{ev.Id}")">
+                            Podrobnosti
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<EventDto> events = new();
+    private DateTime? fromDate;
+    private DateTime? toDate;
+    private bool loading = true;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEvents();
+    }
+
+    private async Task LoadEvents()
+    {
+        loading = true;
+        error = null;
+
+        try
+        {
+            if (fromDate.HasValue && toDate.HasValue &&
+                fromDate > toDate)
+            {
+                error = "Začetni datum ne sme biti za končnim.";
+                return;
+            }
+
+            events = await Api.GetEventsAsync(fromDate, toDate);
+        }
+        catch (Exception)
+        {
+            error = "Dogodkov ni bilo mogoče naložiti. " +
+                    "Preveri, ali API deluje.";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task ClearFilters()
+    {
+        fromDate = null;
+        toDate = null;
+        await LoadEvents();
+    }
+}

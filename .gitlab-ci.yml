@@ -1,0 +1,31 @@
+
+stages:
+  - build
+  - test
+
+default:
+  image: mcr.microsoft.com/dotnet/sdk:10.0
+
+variables:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "true"
+
+build:
+  stage: build
+  script:
+    - dotnet restore HF.slnx
+    - dotnet build HF.slnx --configuration Release --no-restore
+
+test:
+  stage: test
+  script:
+    - dotnet restore HF.slnx
+    - dotnet test HF.Tests/HF.Tests.csproj --configuration Release --no-restore --logger "junit;LogFilePath=../TestResults/results.xml"
+
+  artifacts:
+    when: always
+    reports:
+      junit: HF.Tests/TestResults/results.xml
+    paths:
+      - HF.Tests/TestResults/
+    expire_in: 7 days

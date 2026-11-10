@@ -1,338 +1,128 @@
 # Stičišče
 
-**Stičišče** is a web application for discovering events and registering participants. Users can browse events, filter them by date, view event details and availability, and submit registrations.
+**Stičišče** is a web application for browsing events and registering participants. Users can filter events by date, view event details and available places, and register using their name and email address.
 
-The application consists of an ASP.NET Core Web API backend, a Blazor frontend, and a PostgreSQL database.
+The application prevents registrations for full or past events and duplicate registrations using the same email address.
 
-## Technologies
+## Technologies and Design Decisions
 
-| Component | Technology |
-|---|---|
-| Backend | ASP.NET Core Web API (.NET 10) |
-| Frontend | Blazor Web App (Interactive Server) |
-| Database | PostgreSQL |
-| ORM | Entity Framework Core |
-| Database migrations | EF Core Migrations |
-| Language | C# |
-| Styling | Bootstrap and custom CSS |
+- **Backend:** ASP.NET Core Web API (.NET 10)
+- **Frontend:** Blazor Web App (Interactive Server)
+- **Database:** PostgreSQL with Entity Framework Core
+- **Testing:** xUnit
+- **Containerization:** Docker and Docker Compose
+- **CI:** GitLab CI
 
-### Technology Selection
+Blazor was chosen because it allows both frontend and backend development in C#, simplifying development and maintenance. The projects are separated to keep the API independent of the user interface.
 
-Blazor was selected because it enables interactive web development using C# and integrates naturally with the ASP.NET Core ecosystem.
+PostgreSQL was selected as a free, open-source relational database supporting transactions and data integrity constraints. Entity Framework Core simplifies database access and schema management through migrations.
 
-The frontend and backend are separated into two projects. This provides a clear separation between the user interface, API, business logic, and database access.
+Business rules are enforced on the backend. Database transactions and row-level locking prevent concurrent registrations from exceeding event capacity.
 
-Blazor Interactive Server also allows the frontend to communicate with the API through server-side `HttpClient` requests.
+## Running the Application
 
-PostgreSQL was selected as a free, open-source relational database with support for transactions, constraints, and concurrent operations.
+### Local Development
 
-## Features
+Requirements: .NET 10 SDK, PostgreSQL and EF Core CLI tools.
 
-### Event Browsing
-
-- View a list of events
-- Filter events by a date range
-- View event details, including date, location, and capacity
-- Display the number of remaining available places
-- Distinguish between upcoming, past, and fully booked events
-
-### Event Registration
-
-Users can register for events by providing their full name and email address.
-
-The backend enforces the following business rules:
-
-1. Registration is not allowed when an event has reached its capacity.
-2. The same email address cannot be registered twice for the same event.
-3. Registration is not allowed for past events.
-4. Invalid requests return appropriate HTTP status codes and understandable error messages.
-
-Registration processing uses database transactions and PostgreSQL row-level locking to protect event capacity from concurrent registrations.
-
-A unique database index on the combination of event ID and email provides additional protection against duplicate registrations.
-
-## Project Structure
-
-```text
-HF_naloga/
-├── HF.Api/
-│   ├── Controllers/    # API endpoints
-│   ├── Data/           # DbContext and database seeding
-│   ├── DTOs/           # API request models
-│   ├── Models/         # Database entities
-│   ├── Migrations/     # EF Core migrations
-│   └── Program.cs
-│
-├── HF.Web/
-│   ├── Components/
-│   │   ├── Layout/    # Application layout
-│   │   └── Pages/     # Event listing and details
-│   ├── Models/         # Frontend data models
-│   ├── Services/       # API communication
-│   ├── wwwroot/        # CSS and static assets
-│   └── Program.cs
-│
-├── HF.slnx
-├── .gitignore
-└── README.md
-```
-
-## API Endpoints
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/events` | Retrieve events with optional date filtering |
-| GET | `/events/{id}` | Retrieve event details and remaining capacity |
-| POST | `/events/{id}/registrations` | Register a participant |
-
-### Event Filtering
-
-Optional query parameters:
-
-- `from` – Start date (inclusive)
-- `to` – End date (inclusive)
-
-Dates use the `yyyy-MM-dd` format. The current API interprets date boundaries in UTC.
-
-Example:
-
-```http
-GET /events?from=2026-11-01&to=2026-12-31
-```
-
-### Registration
-
-Example request:
-
-```http
-POST /events/1/registrations
-Content-Type: application/json
-```
-
-```json
-{
-  "fullName": "Ana Novak",
-  "email": "ana.novak@example.com"
-}
-```
-
-### HTTP Responses
-
-| Status | Description |
-|---|---|
-| 200 OK | Successful data retrieval |
-| 201 Created | Registration created successfully |
-| 400 Bad Request | Invalid input or date filter |
-| 404 Not Found | Event does not exist |
-| 409 Conflict | Duplicate registration, full event, or past event |
-
-API errors use structured error responses containing descriptive messages.
-
-## Database
-
-The database contains two main entities.
-
-### Event
-
-- `Id`
-- `Name`
-- `DateTime`
-- `Location`
-- `Capacity`
-
-### Registration
-
-- `Id`
-- `EventId`
-- `FullName`
-- `Email`
-- `RegisteredAt`
-
-Each event can have multiple registrations.
-
-Database schema changes are managed using Entity Framework Core migrations.
-
-### Initial Data
-
-During development, the application automatically inserts sample events when the events table is empty.
-
-The sample data includes upcoming and past events to support manual testing.
-
-Existing database records are not overwritten when the seeder runs again.
-
-## Local Development
-
-### Prerequisites
-
-- .NET 10 SDK
-- PostgreSQL
-- EF Core CLI tools (`dotnet-ef`)
-- Visual Studio Code or another .NET-compatible IDE
-
-### 1. Configure PostgreSQL
-
-Create a PostgreSQL database named `hf_naloga`.
-
-Initialize User Secrets for the API project if they have not already been initialized:
+Create a PostgreSQL database named `hf_naloga` and configure the connection using .NET User Secrets:
 
 ```powershell
 dotnet user-secrets init --project HF.Api
-```
-
-Configure the connection string:
-
-```powershell
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=hf_naloga;Username=postgres;Password=YOUR_PASSWORD" --project HF.Api
 ```
 
-Replace `YOUR_PASSWORD` with your local database password.
-
-Never commit database credentials to version control.
-
-### 2. Restore Dependencies
-
-From the repository root:
-
-```powershell
-dotnet restore
-```
-
-### 3. Apply Database Migrations
+Apply database migrations:
 
 ```powershell
 dotnet ef database update --project HF.Api --startup-project HF.Api
 ```
 
-This creates the required database tables.
-
-### 4. Configure the Frontend
-
-Set the backend URL in `HF.Web/appsettings.Development.json`:
-
-```json
-{
-  "Api": {
-    "BaseUrl": "http://localhost:5083/"
-  }
-}
-```
-
-Keep any other existing configuration sections. Adjust the port if necessary.
-
-### 5. Run the Backend
+Start the backend:
 
 ```powershell
 dotnet run --project HF.Api
 ```
 
-### 6. Run the Frontend
-
-Open another terminal:
+In a separate terminal, start the frontend:
 
 ```powershell
 dotnet run --project HF.Web
 ```
 
-Open the URL displayed by the frontend application.
+The frontend API URL is configured in `HF.Web/appsettings.Development.json`. By default, the API runs at `http://localhost:5083/`. Adjust the configuration if necessary.
 
-Both projects must be running during local development.
+Sample events are automatically inserted into an empty database during development.
 
-## User Interface
+### Docker
 
-Stičišče uses a responsive Blazor interface with a beige, burgundy, and mint-green color palette.
+Docker Compose starts the API and PostgreSQL database. The frontend is not included in the current Docker configuration.
 
-The main page displays available events and provides a date-range search.
-
-The event details page provides information about the selected event and a registration form with validation and feedback messages.
-
-## Security and Data Validation
-
-- Input validation is performed before registrations are processed.
-- Business rules are enforced by the backend.
-- Email addresses are normalized before being stored through the API.
-- Duplicate registrations are restricted by a database unique index.
-- Transactions and row-level locking prevent concurrent registrations from exceeding capacity.
-- Database credentials are stored locally using .NET User Secrets.
-- Generated build files and sensitive local configuration files are excluded through `.gitignore`.
-
-.NET User Secrets are intended for local development and are not encrypted secret storage.
-
-
-## License
-
-No license has been specified for this project.
-
-
-## Automated Tests
-
-The application uses xUnit for automated unit testing.
-
-Business rules are implemented in a dedicated RegistrationRules class, allowing them to be tested independently of the database and HTTP layer.
-
-The unit tests cover:
-
-- Rejecting registrations when an event is full
-- Rejecting duplicate registrations
-- Rejecting registrations for past events
-- Allowing valid registrations
-- Email address normalization
-- Rejecting registrations at the exact event start time
-
-Run the tests from the repository root:
-
-```powershell
-dotnet test HF.Tests/HF.Tests.csproj
-```
-
-The current tests validate business-rule decisions. Full API, database constraint, and concurrent registration behavior can additionally be verified through integration tests.
-
-
-## Docker
-
-The application includes a multi-stage Dockerfile for the ASP.NET Core Web API.
-
-Docker Compose starts two services:
-
-api – ASP.NET Core Web API
-
-db – PostgreSQL database
-
-Running with Docker Compose
-
-Install Docker Desktop and ensure Docker is running.
-
-Create a local environment configuration file:
+Create a local `.env` file from `.env.example` and replace the placeholder with a database password.
 
 ```powershell
 Copy-Item .env.example .env
-```
-
-Edit .env and replace the placeholder with a strong database password.
-
-Build and start the services:
-
-```powershell
 docker compose up --build -d
 ```
 
 The API is available at:
 
-http://localhost:8085/events
+`http://localhost:8085/events`
 
-The PostgreSQL database is stored in a persistent Docker volume.
-
-Database migrations are automatically applied when the Docker environment starts. During development, sample events are inserted if the database contains no events.
-
-To stop the services:
+To stop the containers:
 
 ```powershell
 docker compose down
 ```
 
-To stop the services and delete the database volume:
+Database data is preserved in a Docker volume.
+
+## Tests and CI
+
+Business rules are covered by xUnit unit tests, including full events, duplicate registrations and past events.
+
+Run tests locally:
 
 ```powershell
-docker compose down -v
+dotnet test HF.Tests/HF.Tests.csproj
 ```
 
-The Compose configuration is intended for local development and testing, not production deployment.
+The `.gitlab-ci.yml` pipeline builds the .NET solution and executes automated tests. Failed builds or tests cause the pipeline to fail.
+
+### Proposed CI/CD Extension
+
+The pipeline could be extended with the following stages:
+
+1. **Build and test:** Compile the solution and run automated tests.
+2. **Publish:** Build a versioned Docker image and push it to the GitLab Container Registry.
+3. **Test deployment:** Automatically deploy changes from `main` to a separate test environment, apply migrations and run integration tests.
+4. **Production deployment:** After successful testing, allow manual deployment of the tested image using protected credentials.
+5. **Verification:** Perform health checks and monitoring, with application rollback support if deployment fails.
+
+Test and production environments would use separate databases and secrets. Production deployment would additionally require HTTPS, database backups and controlled migrations.
+
+## Possible Improvements
+
+Given more development time, the following improvements would be prioritized.
+
+### User Experience
+
+- **Improved UI/UX:** Further refine the visual design, responsiveness and accessibility.
+- **Detailed locations:** Extend the event model with a more precise address or venue information.
+- **Location filtering:** Allow users to search for events by city or location.
+- **Past events:** Move past events to the bottom of the list and display them with reduced opacity.
+- **User accounts:** Introduce registration, login and user profiles where participants could view and manage their event registrations.
+- **Notifications:** Allow users to subscribe to event categories or specific events and receive email notifications about new events, changes or upcoming dates.
+
+### Technical Improvements
+
+- **Security:** Strengthen API security with rate limiting, input validation and protection against SQL injection. Continue using parameterized queries through Entity Framework Core and avoid dynamically constructed SQL from user input.
+- **Authentication:** If user accounts are introduced, implement secure authentication and store passwords using established salted password-hashing algorithms, such as those provided by ASP.NET Core Identity, rather than plaintext or reversible encryption.
+- **Authorization:** Introduce administrator roles for creating, editing and deleting events.
+- **Testing:** Add API integration tests against PostgreSQL, including concurrent registration scenarios.
+- **Monitoring:** Introduce structured logging, health checks and centralized error monitoring.
+- **Date handling:** Display event dates in the user's local time zone while storing timestamps in UTC.
+
+## License
+
+No license has been specified for this project.
